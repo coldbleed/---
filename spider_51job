@@ -1,0 +1,117 @@
+# -*- coding = utf-8 -*-
+# @Time : 2021-3-22 9:02
+# @Author : GMZ
+# @File : main.py
+# @software : PyCharm
+import urllib.request,urllib.error
+import bs4
+import re
+import mysql.connector
+import time,random
+
+def main():
+    for i in range(1,2):
+        datalist = getData(i)
+        conDB(datalist)
+        time.sleep(random.randint(1,5))
+
+def conDB(datalist):        #链接数据库，并存入数据
+    mydb = mysql.connector.connect(
+        host = "localhost",
+        user = "root",
+        passwd = "root123",
+        database = "job_51"
+    )
+    mycursor = mydb.cursor()
+    for i in range(0, 50):
+        sql = "INSERT INTO job51_python (id,name,job_href,company_href,company_name,provide_salary,area,update_date,company_type_text,jobwelf,attribute) VALUE (%s, %s, %s ,%s, %s, %s, %s, %s, %s, %s, %s)"
+        val = (datalist[i][0], datalist[i][1], datalist[i][2], datalist[i][3], datalist[i][4], datalist[i][5], datalist[i][6],datalist[i][7],datalist[i][8],datalist[i][9],datalist[i][10])
+        mycursor.execute(sql, val)
+    mydb.commit()
+
+#通过正则表达式寻找信息
+findJobId = re.compile(r'"jobid":"([0-9]*?)"')
+findJobHref = re.compile(r'"job_href":"(.*?)"')
+findJobName = re.compile(r'"job_name":"(.*?)"')
+findCompanyHref = re.compile(r'"company_href":"(.*?)"')
+findCompanyName = re.compile(r'"company_name":"(.*?)"')
+findProvideSalary = re.compile(r'"providesalary_text":"(.*?)"')
+findAreaText = re.compile(r'"workarea_text":"(.*?)"')
+findUpdateDate = re.compile(r'"updatedate":"(.*?)",')
+findCompanyTypeText = re.compile(r'"companytype_text":"(.*?)"')
+findJobwelf = re.compile(r'"jobwelf":"(.*?)?"')
+findAttribute = re.compile(r'"attribute_text":\[(.*?)\]')
+
+def getData(pageNum):           #获得数据
+    dataList = []
+    url = geturl(pageNum)
+    html = askURL(url)
+    soup = bs4.BeautifulSoup(html,"html.parser")
+    for item in soup.find_all('script',type = "text/javascript" , src = ''):
+        item = str(item)
+        jobId =re.findall(findJobId,item)
+        jobHref = re.findall(findJobHref,item)
+        jobName = re.findall(findJobName,item)
+        companyHref = re.findall(findCompanyHref,item)
+        provideSalary = re.findall(findProvideSalary,item)
+        companyName = re.findall(findCompanyName, item)
+        areaText = re.findall(findAreaText,item)
+        updateDate = re.findall(findUpdateDate,item)
+        companyTypeText = re.findall(findCompanyTypeText,item)
+        jobwelf = re.findall(findJobwelf,item)
+        attribute = re.findall(findAttribute,item)
+        for i in range(0,50):
+            data = []
+            dataNew = []
+            data.append(jobId[i])
+            data.append(jobName[i])
+            data.append(jobHref[i])
+            data.append(companyHref[i])
+            data.append(companyName[i])
+            data.append(provideSalary[i])
+            data.append(areaText[i])
+            data.append(updateDate[i])
+            data.append(companyTypeText[i])
+            data.append(jobwelf[i])
+            data.append(attribute[i])
+            for item in data:
+                item = item.replace("\\", "")
+                item = item.replace("\"", "")
+                dataNew.append(item)
+            dataList.append(dataNew)
+    return dataList
+
+def geturl(pageNum):    #根据输入的页数转化为网址，其他信息可额外扩展
+    url = "https://search.51job.com/list/000000,000000,0000,00,9,99,python,2," + str(pageNum) +".html"
+    return url
+
+def askURL(url):    #获得指定网址内容
+    head = {
+        "User-Agent":"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/88.0.4324.146 Safari/537.36",
+        "Accept": "text / html, application / xhtml + xml, application / xml;0.9, image / avif, image / webp, image / apng, * / *;q = 0.8, application / signed - exchange;v = b3;q = 0.9",
+        # "Accept - Encoding": "gzip, deflate, br",
+        # "Accept - Language": "zh - CN, zh;q = 0.9, en;q = 0.8",
+        # "Cache - Control": "max - age = 0",
+        # "Connection": "keep - alive",
+        "Cookie":"guid=5dceb800dadd7ffb87303507f02162b2; nsearch=jobarea%3D%26%7C%26ord_field%3D%26%7C%26recentSearch0%3D%26%7C%26recentSearch1%3D%26%7C%26recentSearch2%3D%26%7C%26recentSearch3%3D%26%7C%26recentSearch4%3D%26%7C%26collapse_expansion%3D; search=jobarea%7E%60000000%7C%21ord_field%7E%600%7C%21recentSearch0%7E%60000000%A1%FB%A1%FA000000%A1%FB%A1%FA0000%A1%FB%A1%FA00%A1%FB%A1%FA99%A1%FB%A1%FA%A1%FB%A1%FA99%A1%FB%A1%FA99%A1%FB%A1%FA99%A1%FB%A1%FA99%A1%FB%A1%FA9%A1%FB%A1%FA99%A1%FB%A1%FA%A1%FB%A1%FA0%A1%FB%A1%FApython%A1%FB%A1%FA2%A1%FB%A1%FA1%7C%21recentSearch1%7E%60080200%A1%FB%A1%FA000000%A1%FB%A1%FA0000%A1%FB%A1%FA00%A1%FB%A1%FA99%A1%FB%A1%FA%A1%FB%A1%FA99%A1%FB%A1%FA99%A1%FB%A1%FA99%A1%FB%A1%FA99%A1%FB%A1%FA9%A1%FB%A1%FA99%A1%FB%A1%FA%A1%FB%A1%FA0%A1%FB%A1%FApython%A1%FB%A1%FA2%A1%FB%A1%FA1%7C%21recentSearch2%7E%60080200%A1%FB%A1%FA000000%A1%FB%A1%FA0000%A1%FB%A1%FA00%A1%FB%A1%FA99%A1%FB%A1%FA%A1%FB%A1%FA99%A1%FB%A1%FA99%A1%FB%A1%FA99%A1%FB%A1%FA99%A1%FB%A1%FA9%A1%FB%A1%FA99%A1%FB%A1%FA%A1%FB%A1%FA0%A1%FB%A1%FApthon%A1%FB%A1%FA1%A1%FB%A1%FA1%7C%21recentSearch3%7E%60080200%A1%FB%A1%FA000000%A1%FB%A1%FA0000%A1%FB%A1%FA00%A1%FB%A1%FA01%A1%FB%A1%FA%A1%FB%A1%FA99%A1%FB%A1%FA99%A1%FB%A1%FA99%A1%FB%A1%FA99%A1%FB%A1%FA9%A1%FB%A1%FA04%A1%FB%A1%FA%A1%FB%A1%FA0%A1%FB%A1%FApython%A1%FB%A1%FA2%A1%FB%A1%FA1%7C%21recentSearch4%7E%60080200%A1%FB%A1%FA000000%A1%FB%A1%FA0000%A1%FB%A1%FA00%A1%FB%A1%FA06%A1%FB%A1%FA%A1%FB%A1%FA99%A1%FB%A1%FA99%A1%FB%A1%FA99%A1%FB%A1%FA99%A1%FB%A1%FA9%A1%FB%A1%FA04%A1%FB%A1%FA%A1%FB%A1%FA0%A1%FB%A1%FApython%A1%FB%A1%FA2%A1%FB%A1%FA1%7C%21collapse_expansion%7E%601%7C%21"        # "Host": "search.51job.com",
+        # "Sec - Fetch - Dest": "document",
+        # "Sec - Fetch - Mode": "navigate",
+        # "Sec - Fetch - Site": "same - origin",
+        # "Sec - Fetch - User": "?1",
+        # "Upgrade - Insecure - Requests": "1"
+    }
+    request = urllib.request.Request(url,headers=head)
+    html = ""
+    try:
+        response = urllib.request.urlopen(request)
+        html = response.read().decode("GBK")
+    except urllib.error.URLError as e:
+        if hasattr(e,"code"):
+            print(e.code)
+        if hasattr(e,"reason"):
+            print(e.reason)
+    return html
+
+if __name__ == '__main__':
+    main()
+
